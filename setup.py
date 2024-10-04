@@ -20,6 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'control_node = apriltag_control.control_node:main',
+            'sub_node = apriltag_control.sub_node:main',
         ],
     },
 )
