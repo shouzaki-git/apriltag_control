@@ -10,7 +10,7 @@ import serial
 class ImageSubscriber(Node):
     def __init__(self):
         super().__init__('image_subscriber')
-        self.declare_parameter('topic', 'image_raw')
+        self.declare_parameter('topic', 'apriltag_image')
         self.topic = self.get_parameter('topic').get_parameter_value().string_value
         self.bridge = CvBridge()
         self.create_subscription(Image, self.topic, self.listener_callback, 10)
@@ -19,7 +19,7 @@ class ImageSubscriber(Node):
         # ROS2のImageメッセージをOpenCVの画像に変換
         cv_img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         # 画像をウィンドウに表示
-        cv.imshow("AprilTag Detection", cv_img)
+        ##cv.imshow("AprilTag Detection", cv_img)
         cv.waitKey(1)
 
 
@@ -43,7 +43,16 @@ class DirectionSubscriber(Node):
         # Twistメッセージから線形速度と角速度を取得
         linear_x = twist.linear.x
         angular_z = twist.angular.z
-
+        linear_x = twist.linear.x
+        if linear_x > 1.0:
+            linear_x = 1.0
+        elif linear_x < -1.0:
+            linear_x = -1.0
+        angular_z = twist.angular.z
+        if angular_z > 1.0:
+            angular_z = 1.0
+        elif angular_z < -1.0:
+            angular_z = -1.0
         # 速度データをArduinoに送信 (例: "L:0.5,A:0.2\n" のようなフォーマットで送信)
         command = f'L:{linear_x:.2f},A:{angular_z:.2f}\n'
         try:

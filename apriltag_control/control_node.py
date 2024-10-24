@@ -17,8 +17,8 @@ class AprilTagDetector(Node):
         super().__init__('apriltag_detector')
         self.robot_controller = robot_controller  # RobotController インスタンスを保持
         self.cap = cv2.VideoCapture(4)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
         # AprilTag 検出器の初期化
         self.detector = Detector(
@@ -32,6 +32,7 @@ class AprilTagDetector(Node):
         )
 
         self.bridge = CvBridge()
+        self.image_publisher = self.create_publisher(Image, 'apriltag_image', 10)  # 画像トピックをパブリッシュ
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)  # AprilTagの位置情報をブロードキャスト
         self.timer = self.create_timer(0.1, self.timer_callback)
 
@@ -45,7 +46,7 @@ class AprilTagDetector(Node):
         tags = self.detector.detect(
             gray_frame,
             estimate_tag_pose=True,
-            camera_params=(1280, 720, 640, 360),  # 仮のカメラパラメータ、実際のキャリブレーション値を使用
+            camera_params=(640, 480, 320, 240),  # 仮のカメラパラメータ、実際のキャリブレーション値を使用
             tag_size=0.162
         )
         
@@ -65,6 +66,7 @@ class AprilTagDetector(Node):
         
         # 画像メッセージをパブリッシュ
         img_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
+        self.image_publisher.publish(img_msg)  # 画像をパブリッシュ
         self.get_logger().info("Image published.")
 
     def destroy(self):
@@ -81,16 +83,33 @@ class RobotController(Node):
         self.target_angle = 0.0
         self.current_angle = 0.0
 
+        # Kalmanフィルタの初期化
+        self.kalman = KalmanFilter(dim_x=1, dim_z=1)
+        self.kalman.x = np.array([[0.]])  # 初期状態
+        self.kalman.F = np.array([[1.]])  # 状態遷移行列
+        self.kalman.H = np.array([[1.]])  # 観測行列
+        self.kalman.P *= 1000.  # 共分散行列
+        self.kalman.R = np.array([[5.]])  # 観測ノイズ共分散
+        self.kalman.Q = np.array([[0.1]])  # プロセスノイズ共分散
+
     def control_callback(self):
         angle_diff = self.target_angle - self.current_angle
         twist = Twist()
         twist.linear.x = 0.0
+        if(angle_diff > 0.1):
+            twist.linear.x = 1.0
+        elif(angle_diff < -0.1):
+            twist.linear.x = -1.0
+        
         twist.angular.z = angle_diff * 0.1
         self.cmd_vel_publisher.publish(twist)
 
     def update_current_angle(self, new_angle):
-        self.current_angle = new_angle
-        self.get_logger().info(f'Updated current angle: {self.current_angle}')
+        # Kalmanフィルタで角度を更新
+        self.kalman.predict()
+        self.kalman.update(np.array([[new_angle]]))
+        self.current_angle = self.kalman.x[0, 0]
+        self.get_logger().info(f'Updated current angle (Kalman filtered): {self.current_angle}')
 
 
 def main(args=None):
