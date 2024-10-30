@@ -10,10 +10,10 @@ class MotionActionClient(Node):
 
     def send_goal(self, target_x, target_y, target_theta):
         goal_msg = MoveToGoal.Goal()
-        goal_msg.target_x = target_x
-        goal_msg.target_y = target_y
-        goal_msg.target_theta = target_theta
-        
+        goal_msg.target_x = float(target_x)
+        goal_msg.target_y = float(target_y)
+        goal_msg.target_theta = float(target_theta)
+
         self._action_client.wait_for_server()
         self.send_goal_async(goal_msg)
 

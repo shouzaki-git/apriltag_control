@@ -22,8 +22,11 @@ setup(
         'console_scripts': [
             'control_node = apriltag_control.control_node:main',
             'sub_node = apriltag_control.sub_node:main',
+            'sub2_node = apriltag_control.sub2_node:main',
             'action_server = apriltag_control.action_server:main',
             'action_client = apriltag_control.action_client:main',
+            'apriltag_server = apriltag_control.apriltag_server:main',
+            'main = apriltag_control.main:main'
         ],
     },
 )
